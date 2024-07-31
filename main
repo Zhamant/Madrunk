@@ -1,1 +1,72 @@
+import requests
+from bs4 import BeautifulSoup
+from tabulate import tabulate
+
+#Brewklyn
+#url = "https://untappd.com/v/brewklyn-craft-beer-cafe/11915268"
+
+#Koht Tap
+#url = "https://untappd.com/v/koht/669673"
+
+#Koht Bottles/cans
+#url = "https://untappd.com/v/koht/669673?menu_id=21328"
+
+#MKOT Tap
+#url = "https://untappd.com/v/mikkeller-tallinn-old-town/11659620?menu_id=141725"
+
+#MKOT Bottles/cans
+#url = "https://untappd.com/v/mikkeller-tallinn-old-town/11659620?menu_id=141726"
+
+#UJH Tap
+url = "https://untappd.com/v/uba-ja-humal/2584738"
+
+#BD
+#url = "https://untappd.com/v/brewdog-tallinn/6101347"
+
+
+# User-Agent Header
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+# Read integers from Madrunk file
+madrunk_file_path = "C:\\Users\\virgo\\Beers_Madrunk.txt"
+madrunk_beer_ids = {int(line.strip()) for line in open(madrunk_file_path)}
+
+# Read styles from Styles file
+styles_file_path = "C:\\Users\\virgo\\Styles.txt"
+styles = {line.strip() for line in open(styles_file_path)}
+
+# Make a request to the URL with headers
+response = requests.get(url, headers=headers)
+
+# Check if the request was successful (status code 200)
+if response.status_code == 200:
+    # Parse the HTML content of the page
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Find all <li> elements with class "menu-item" and id "beer"
+    beer_items = soup.find_all("li", class_="menu-item", id="beer")
+
+    # Extract Beer IDs, names, styles, and breweries
+    beer_data = [
+        {
+            "ID": int(beer_item.find("a", {"class": "track-click", "data-track": "menu", "data-href": ":"}).get("href").split("/")[-1]),
+            "Name": beer_item.find("a", {"class": "track-click", "data-track": "menu", "data-href": ":"}).text.strip(),
+            "Style": beer_item.find("em").text.strip() if beer_item.find("em") else "Unknown",
+            "Brewery": beer_item.select_one("a[href^='/w/']").text.strip() if beer_item.select_one("a[href^='/w/']") else "Unknown",
+        }
+        for beer_item in beer_items
+    ]
+
+    # Filter only rows where ID is not found in Madrunk.txt and Style is found in Styles.txt
+    filtered_beer_data = [beer for beer in beer_data if beer["ID"] not in madrunk_beer_ids and beer["Style"] in styles]
+
+    # Print results in a table
+    if filtered_beer_data:
+        print(tabulate(filtered_beer_data, headers="keys", tablefmt="grid"))
+    else:
+        print("No beers found.")
+else:
+    print(f"Error {response.status_code}: {response.text}")
 
